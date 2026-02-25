@@ -2,8 +2,8 @@
 
 Generates a log-log roofline chart showing the memory-bandwidth and
 compute ceilings for a given Apple Silicon chip, with measured kernel
-performance overlaid.  If no measured data is provided, example points
-from the PLAN.md are used.
+performance overlaid.  If no measured data is provided, estimated
+efficiency percentages are used as placeholders.
 
 Usage:
     python benchmarks/roofline.py                         # default M4 Pro
@@ -29,6 +29,13 @@ CHIPS = {
     "m4_max":   {"gflops": 15050, "bw": 546,   "label": "Apple M4 Max (40-core GPU)"},
 }
 
+# Markers to visually distinguish kernel groups
+MARKERS = {
+    'K1-K4': 'o',   # CUDA-ported kernels
+    'K5-K7': 's',   # PyTorch-inspired kernels
+    'PyTorch': '*',  # Baseline
+}
+
 
 def plot_roofline(peak_gflops, peak_bw_gbs, kernels=None,
                   title="Roofline Model"):
@@ -38,7 +45,7 @@ def plot_roofline(peak_gflops, peak_bw_gbs, kernels=None,
         peak_gflops: Peak FP32 GFLOPS of the chip.
         peak_bw_gbs: Peak memory bandwidth in GB/s.
         kernels: List of dicts with keys 'name', 'ai' (FLOP/byte),
-                 'gflops' (achieved).
+                 'gflops' (achieved), and optionally 'marker'.
         title: Plot title.
 
     Returns:
@@ -60,7 +67,8 @@ def plot_roofline(peak_gflops, peak_bw_gbs, kernels=None,
         for k in kernels:
             roof_at_ai = min(peak_bw_gbs * k['ai'], peak_gflops)
             eff = k['gflops'] / roof_at_ai * 100
-            ax.plot(k['ai'], k['gflops'], 'o', ms=12, mec='black',
+            marker = k.get('marker', 'o')
+            ax.plot(k['ai'], k['gflops'], marker, ms=12, mec='black',
                     label=f"{k['name']} ({eff:.0f}% eff)")
             ax.plot([k['ai']] * 2, [k['gflops'], roof_at_ai],
                     ':', lw=1)
@@ -68,7 +76,7 @@ def plot_roofline(peak_gflops, peak_bw_gbs, kernels=None,
     ax.set_xlabel('Arithmetic Intensity (FLOP/Byte)')
     ax.set_ylabel('Performance (GFLOPS)')
     ax.set_title(title)
-    ax.legend(loc='lower right')
+    ax.legend(loc='lower right', fontsize=8)
     ax.grid(True, which='both', ls='--', alpha=0.3)
     ax.set_xlim(0.01, 10000)
     ax.set_ylim(1, peak_gflops * 2)
@@ -94,18 +102,30 @@ def main():
     peak_gflops = chip["gflops"]
     peak_bw = chip["bw"]
 
-    # Example kernel data points — replace with measured values
+    # Arithmetic intensities for each kernel class
+    ai_k1_k4 = 8.0 / 24.0   # 3 reads of X: 0.33 FLOP/byte
+    ai_k5_k6 = 8.0 / 20.0   # 2 reads of X: 0.40 FLOP/byte
+    ai_k7    = 8.0 / 16.0   # 1 read of X:  0.50 FLOP/byte
+
+    # Estimated efficiency percentages — replace with measured values
+    # from bench_events.py once available.
     kernels = [
-        {
-            'name': 'LayerNorm (naive)',
-            'ai': 0.4,
-            'gflops': 0.4 * peak_bw * 0.60,
-        },
-        {
-            'name': 'LayerNorm (optimized)',
-            'ai': 0.4,
-            'gflops': 0.4 * peak_bw * 0.85,
-        },
+        {'name': 'K1: Naive',         'ai': ai_k1_k4,
+         'gflops': ai_k1_k4 * peak_bw * 0.12, 'marker': 'o'},
+        {'name': 'K2: Shared',        'ai': ai_k1_k4,
+         'gflops': ai_k1_k4 * peak_bw * 0.20, 'marker': 'o'},
+        {'name': 'K3: SIMD',          'ai': ai_k1_k4,
+         'gflops': ai_k1_k4 * peak_bw * 0.30, 'marker': 'o'},
+        {'name': 'K4: Vectorized',    'ai': ai_k1_k4,
+         'gflops': ai_k1_k4 * peak_bw * 0.49, 'marker': 'o'},
+        {'name': 'K5: Fused',         'ai': ai_k5_k6,
+         'gflops': ai_k5_k6 * peak_bw * 0.70, 'marker': 's'},
+        {'name': 'K6: Robust',        'ai': ai_k5_k6,
+         'gflops': ai_k5_k6 * peak_bw * 0.70, 'marker': 's'},
+        {'name': 'K7: Register-tiled', 'ai': ai_k7,
+         'gflops': ai_k7 * peak_bw * 0.85, 'marker': 's'},
+        {'name': 'PyTorch native',    'ai': ai_k5_k6,
+         'gflops': ai_k5_k6 * peak_bw * 0.80, 'marker': '*'},
     ]
 
     fig = plot_roofline(peak_gflops, peak_bw, kernels,

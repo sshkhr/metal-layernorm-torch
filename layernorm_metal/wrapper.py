@@ -10,6 +10,9 @@ KERNELS = {
     "shared":     ("layernorm_shared.metal",     "layernorm_shared"),
     "simd":       ("layernorm_simd.metal",       "layernorm_simd"),
     "vectorized": ("layernorm_vectorized.metal", "layernorm_vectorized"),
+    "fused":      ("layernorm_fused.metal",      "layernorm_fused"),
+    "robust":     ("layernorm_robust.metal",     "layernorm_robust"),
+    "regtiled":   ("layernorm_regtiled.metal",   "layernorm_regtiled"),
 }
 
 
@@ -38,6 +41,9 @@ def layernorm_forward(
             "shared"     — K2: threadgroup tree reduction, coalesced access.
             "simd"       — K3: simd_sum reduction, minimal barriers.
             "vectorized" — K4: float4 loads + simd reduction (default).
+            "fused"      — K5: single-pass fused stats + float4 + SIMD.
+            "robust"     — K6: fused + tail handling + precise rsqrt.
+            "regtiled"   — K7: register-tiled, single device memory read.
 
     Returns:
         Normalized output tensor with same shape as input.

@@ -21,7 +21,8 @@ EPS = 1e-5
 
 parser = argparse.ArgumentParser(description="Capture Metal GPU trace.")
 parser.add_argument("--kernel", default="vectorized",
-                    choices=["naive", "shared", "simd", "vectorized"],
+                    choices=["naive", "shared", "simd", "vectorized",
+                             "fused", "robust", "regtiled"],
                     help="Kernel variant to capture (default: vectorized)")
 parser.add_argument("-o", "--output", default="/tmp/layernorm.gputrace",
                     help="Output .gputrace path")
