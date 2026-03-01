@@ -82,9 +82,16 @@ torch::Tensor layernorm_forward(
     int64_t N = input.size(1);      // hidden dim (columns)
     torch::Tensor output = torch::empty_like(input);
 
+    // Resolve Metal function name (ablation variants share the same shader
+    // function but use different dispatch configs).
+    std::string metal_fn = kernel_name;
+    if (kernel_name == "layernorm_naive_1024") {
+        metal_fn = "layernorm_naive";
+    }
+
     // Look up (or compile once) the pipeline state
     id<MTLComputePipelineState> pso =
-        getPipelineCache().get(shader_path, kernel_name);
+        getPipelineCache().get(shader_path, metal_fn);
 
     @autoreleasepool {
         // Integrate with PyTorch's MPS command system
@@ -109,14 +116,17 @@ torch::Tensor layernorm_forward(
             [enc setBytes:&N length:sizeof(int64_t) atIndex:4];
             [enc setBytes:&eps length:sizeof(float) atIndex:5];
 
-            if (kernel_name == "layernorm_naive") {
+            if (kernel_name == "layernorm_naive" ||
+                kernel_name == "layernorm_naive_1024") {
                 // K1: One thread per row — use dispatchThreads so each
                 // thread gets a unique row via [[thread_position_in_grid]].
                 // No threadgroup memory needed.
+                NSUInteger maxTg = (kernel_name == "layernorm_naive_1024")
+                    ? (NSUInteger)1024 : (NSUInteger)256;
                 MTLSize gridSize = MTLSizeMake(B, 1, 1);
                 NSUInteger tgWidth = std::min(
                     (NSUInteger)B, pso.maxTotalThreadsPerThreadgroup);
-                tgWidth = std::min(tgWidth, (NSUInteger)256);
+                tgWidth = std::min(tgWidth, maxTg);
                 MTLSize tgSize = MTLSizeMake(tgWidth, 1, 1);
                 [enc dispatchThreads:gridSize threadsPerThreadgroup:tgSize];
 
