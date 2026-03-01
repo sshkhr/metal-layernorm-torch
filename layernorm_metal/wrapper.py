@@ -1,5 +1,6 @@
 import torch
 import pkg_resources
+from functools import lru_cache
 
 # Import the compiled C++ extension (.so lives inside the package as _C)
 from . import _C
@@ -17,6 +18,7 @@ KERNELS = {
 }
 
 
+@lru_cache(maxsize=None)
 def _shader_path(filename: str) -> str:
     return pkg_resources.resource_filename(
         'layernorm_metal', f'kernels/{filename}'
