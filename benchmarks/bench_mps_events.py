@@ -31,15 +31,17 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
+from utils import (
+    KERNEL_META as _KERNEL_META,
+    resolve_kernels, EPS, DTYPE, N_DEFAULT,
+)
+
 # ──────────────────────────────────────────────
 # Configuration
 # ──────────────────────────────────────────────
-N_DEFAULT = 768              # hidden dimension (GPT-2)
 BATCH_SIZES = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
 WARMUP = 10
 NUM_ITERS = 100
-EPS = 1e-5
-DTYPE = torch.float32
 
 # ── M1 Max hardware specs ──
 PEAK_BW_GB_S = 400.0        # LPDDR5 peak memory bandwidth (GB/s)
@@ -66,29 +68,21 @@ THEORETICAL_BYTES = {
 # Effective for large B: read X once (4B) + write Y (4B) = 8B.
 ESTIMATED_DRAM_BYTES = {k: 8 for k in THEORETICAL_BYTES}
 
-# Kernel display labels and plot styles
-KERNEL_META = {
-    "pytorch":    {"label": "PyTorch nn.LayerNorm",       "marker": "*", "color": "#f59e0b"},
-    "naive":      {"label": "K1: Naive (tg=256)",         "marker": "v", "color": "#6b7280"},
-    "naive_1024": {"label": "K1: Naive (tg=1024)",        "marker": "v", "color": "#d97706"},
-    "shared":     {"label": "K2: Threadgroup reduction",  "marker": "^", "color": "#8b5cf6"},
-    "simd":       {"label": "K3: SIMD reduction",         "marker": "D", "color": "#ec4899"},
-    "vectorized": {"label": "K4: Vectorized float4",      "marker": "o", "color": "#2563eb"},
-    "fused":      {"label": "K5: Fused single-pass",      "marker": "s", "color": "#059669"},
-    "robust":     {"label": "K6: Robust (tail+precise)",  "marker": "P", "color": "#dc2626"},
-    "regtiled":   {"label": "K7: Register-tiled",         "marker": "X", "color": "#0891b2"},
+# Plot styles (marker + color) per kernel — merged with shared labels below
+PLOT_STYLES = {
+    "pytorch":    {"marker": "*", "color": "#f59e0b"},
+    "naive":      {"marker": "v", "color": "#6b7280"},
+    "naive_1024": {"marker": "v", "color": "#d97706"},
+    "shared":     {"marker": "^", "color": "#8b5cf6"},
+    "simd":       {"marker": "D", "color": "#ec4899"},
+    "vectorized": {"marker": "o", "color": "#2563eb"},
+    "fused":      {"marker": "s", "color": "#059669"},
+    "robust":     {"marker": "P", "color": "#dc2626"},
+    "regtiled":   {"marker": "X", "color": "#0891b2"},
 }
 
-# Canonical ordering for consistent display
-KERNEL_ORDER = ["pytorch", "naive", "naive_1024", "shared", "simd",
-                "vectorized", "fused", "robust", "regtiled"]
-
-# Aliases for convenience (e.g. -k k1 k4 k7)
-ALIASES = {
-    "k1": "naive", "k1b": "naive_1024",
-    "k2": "shared", "k3": "simd", "k4": "vectorized",
-    "k5": "fused", "k6": "robust", "k7": "regtiled",
-}
+# Merge shared labels with plot styles so KERNEL_META[k] has label+marker+color
+KERNEL_META = {k: {**v, **PLOT_STYLES.get(k, {})} for k, v in _KERNEL_META.items()}
 
 # Hidden-dim sweep configs (B, N)
 N_SWEEP = [
@@ -162,24 +156,6 @@ def bench_kernel(B: int, N: int, kernel: str) -> float:
 # ──────────────────────────────────────────────
 # Main logic
 # ──────────────────────────────────────────────
-
-def resolve_kernels(names: list[str]) -> list[str]:
-    """Resolve kernel names/aliases to canonical ordered list."""
-    if "all" in names:
-        return list(KERNEL_ORDER)
-    resolved = []
-    for name in names:
-        canonical = ALIASES.get(name.lower(), name.lower())
-        if canonical not in KERNEL_META:
-            raise ValueError(
-                f"Unknown kernel '{name}'. "
-                f"Choose from: {list(KERNEL_META.keys())} "
-                f"or aliases {list(ALIASES.keys())} or 'all'")
-        if canonical not in resolved:
-            resolved.append(canonical)
-    # Sort by canonical order
-    return [k for k in KERNEL_ORDER if k in resolved]
-
 
 def run_sweep(kernels: list[str], batch_sizes: list[int],
               N: int) -> list[dict]:
