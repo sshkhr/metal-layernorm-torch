@@ -37,7 +37,8 @@ from torch.profiler import profile, record_function, ProfilerActivity
 
 from utils import (
     KERNEL_META,
-    resolve_kernels, output_path_for_kernel, EPS, DTYPE, N_DEFAULT,
+    resolve_kernels, output_path_for_kernel, ensure_parent_dir,
+    EPS, DTYPE, N_DEFAULT,
 )
 
 # ──────────────────────────────────────────────
@@ -131,9 +132,9 @@ def main():
         "--seq-len", type=int, default=None,
         help="Sequence length for 3D input [B, S, N] (default: 2D)")
     parser.add_argument(
-        "-o", "--output", type=str, default="layernorm_profile_{kernel}.json",
+        "-o", "--output", type=str, default="traces/layernorm_profile_{kernel}.json",
         help="Output trace filename; {kernel} is replaced with kernel name "
-             "(default: layernorm_profile_{kernel}.json)")
+             "(default: traces/layernorm_profile_{kernel}.json)")
     args = parser.parse_args()
 
     kernels = resolve_kernels(args.kernels)
@@ -163,6 +164,7 @@ def main():
 
         # Export Chrome trace
         trace_path = output_path_for_kernel(args.output, kernel)
+        ensure_parent_dir(trace_path)
         prof.export_chrome_trace(trace_path)
         trace_files.append((kernel, trace_path))
         print(f"\nChrome trace exported to {trace_path}\n")

@@ -6,6 +6,7 @@ constants used by bench_mps_events.py, profile_torch.py, and gpu_capture.py.
 
 from __future__ import annotations
 
+import os
 import torch
 
 # ──────────────────────────────────────────────
@@ -87,3 +88,11 @@ def output_path_for_kernel(template: str, kernel: str) -> str:
     if "{kernel}" in template:
         return template.replace("{kernel}", kernel)
     return template
+
+
+def ensure_parent_dir(path: str) -> str:
+    """Create parent directories for *path* if they don't exist. Returns path unchanged."""
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    return path

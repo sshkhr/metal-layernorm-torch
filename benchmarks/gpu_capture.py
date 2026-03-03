@@ -26,22 +26,21 @@ from __future__ import annotations
 
 import argparse
 import torch
+import torch.nn.functional as F
 from layernorm_metal import layernorm_forward, start_gpu_capture, stop_gpu_capture
 
 from utils import (
-    KERNEL_META, KERNEL_ORDER,
-    resolve_kernels, output_path_for_kernel, EPS, DTYPE, N_DEFAULT,
+    KERNEL_META,
+    resolve_kernels, output_path_for_kernel, ensure_parent_dir,
+    EPS, DTYPE, N_DEFAULT,
 )
 
 # ──────────────────────────────────────────────
 # Configuration
 # ──────────────────────────────────────────────
-B_DEFAULT = 32
-WARMUP_DEFAULT = 5
+B_DEFAULT = 1024
+WARMUP_DEFAULT = 10
 NUM_ITERS_DEFAULT = 10
-
-# Custom kernels only (no "pytorch" — GPU capture requires Metal shaders)
-CUSTOM_KERNEL_ORDER = [k for k in KERNEL_ORDER if k != "pytorch"]
 
 assert torch.backends.mps.is_available(), "MPS backend not available"
 device = torch.device("mps")
@@ -60,9 +59,16 @@ def capture_kernel(kernel: str, B: int, N: int, num_iters: int,
     gamma = torch.ones(N, device=device, dtype=DTYPE)
     beta = torch.zeros(N, device=device, dtype=DTYPE)
 
+    if kernel == "pytorch":
+        def run():
+            F.layer_norm(x, (N,), gamma, beta, EPS)
+    else:
+        def run():
+            layernorm_forward(x, gamma, beta, EPS, kernel=kernel)
+
     # Warmup (compiles the shader so the capture only contains dispatch)
     for _ in range(warmup):
-        _ = layernorm_forward(x, gamma, beta, EPS, kernel=kernel)
+        run()
     torch.mps.synchronize()
 
     # Capture
@@ -70,7 +76,7 @@ def capture_kernel(kernel: str, B: int, N: int, num_iters: int,
     start_gpu_capture(output_path)
 
     for _ in range(num_iters):
-        _ = layernorm_forward(x, gamma, beta, EPS, kernel=kernel)
+        run()
 
     torch.mps.synchronize()
     stop_gpu_capture()
@@ -86,7 +92,7 @@ def main():
         description="Capture Metal GPU traces for LayerNorm kernels.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
-            "Kernel names: naive (k1), shared (k2), simd (k3),\n"
+            "Kernel names: pytorch, naive (k1), shared (k2), simd (k3),\n"
             "              vectorized (k4), fused (k5), robust (k6), "
             "regtiled (k7)\n"
             "              naive_1024 (k1b)\n"
@@ -109,12 +115,12 @@ def main():
         help=f"Warmup iterations before capture (default: {WARMUP_DEFAULT})")
     parser.add_argument(
         "-o", "--output", type=str,
-        default="/tmp/layernorm_{kernel}.gputrace",
+        default="traces/layernorm_{kernel}.gputrace",
         help="Output .gputrace path; {kernel} is replaced with kernel name "
-             "(default: /tmp/layernorm_{kernel}.gputrace)")
+             "(default: traces/layernorm_{kernel}.gputrace)")
     args = parser.parse_args()
 
-    kernels = resolve_kernels(args.kernels, valid_kernels=CUSTOM_KERNEL_ORDER)
+    kernels = resolve_kernels(args.kernels)
     B, N = args.B, args.N
 
     print(f"GPU Capture — shape=[{B}, {N}], kernels: {kernels}")
@@ -125,6 +131,7 @@ def main():
     for kernel in kernels:
         print("=" * 60)
         output_path = output_path_for_kernel(args.output, kernel)
+        ensure_parent_dir(output_path)
         capture_kernel(kernel, B, N, args.num_iters, args.warmup, output_path)
         trace_files.append((kernel, output_path))
 

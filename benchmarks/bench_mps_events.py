@@ -33,7 +33,7 @@ import matplotlib.ticker as ticker
 
 from utils import (
     KERNEL_META as _KERNEL_META,
-    resolve_kernels, EPS, DTYPE, N_DEFAULT,
+    resolve_kernels, ensure_parent_dir, EPS, DTYPE, N_DEFAULT,
 )
 
 # ──────────────────────────────────────────────
@@ -243,6 +243,7 @@ def print_speedup_summary(results: list[dict], kernels: list[str]):
 
 def save_csv(results: list[dict], path: str):
     """Write results to CSV."""
+    ensure_parent_dir(path)
     with open(path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=results[0].keys())
         writer.writeheader()
@@ -296,6 +297,7 @@ def plot_single(results: list[dict], kernels: list[str],
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
+    ensure_parent_dir(output_path)
     plt.savefig(output_path, dpi=200, bbox_inches='tight')
     print(f"Plot saved to {output_path}")
     plt.close()
@@ -363,6 +365,7 @@ def plot_two_panel(results: list[dict], kernels: list[str],
     ax2.grid(True, alpha=0.3)
 
     plt.tight_layout()
+    ensure_parent_dir(output_path)
     plt.savefig(output_path, dpi=200, bbox_inches='tight')
     print(f"Plot saved to {output_path}")
     plt.close()
@@ -398,11 +401,11 @@ def main():
         "--dram-ceiling", action="store_true",
         help="Show DRAM-bound ceiling line on throughput plot")
     parser.add_argument(
-        "-o", "--output", type=str, default="benchmark-roofline.png",
-        help="Output plot filename (default: benchmark-roofline.png)")
+        "-o", "--output", type=str, default="figures/benchmark-roofline.png",
+        help="Output plot filename (default: figures/benchmark-roofline.png)")
     parser.add_argument(
-        "--csv", type=str, default="benchmark-results.csv",
-        help="Output CSV filename (default: benchmark-results.csv)")
+        "--csv", type=str, default="results/benchmark-results.csv",
+        help="Output CSV filename (default: results/benchmark-results.csv)")
     parser.add_argument(
         "--no-plot", action="store_true",
         help="Skip plot generation (console + CSV only)")
