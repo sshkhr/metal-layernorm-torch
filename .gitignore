@@ -1,0 +1,20 @@
+# Benchmark outputs
+results/
+figures/
+traces/
+
+# Build artifacts
+build/
+*.so
+*.dylib
+
+# Python
+__pycache__/
+*.pyc
+
+# Markdown (except README)
+*.md
+!README.md
+
+# macOS
+.DS_Store
