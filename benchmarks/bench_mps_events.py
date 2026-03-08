@@ -55,7 +55,7 @@ FLOPS_PER_ELEM = 8          # ~8 FLOPs per element
 THEORETICAL_BYTES = {
     "pytorch":    20,  # 2 reads of X (8) + gamma (4) + beta (4) + write (4)
     "naive":      24,  # 3 reads of X (12) + gamma (4) + beta (4) + write (4)
-    "naive_1024": 24,
+    "naive_32":   24,
     "shared":     24,
     "simd":       24,
     "vectorized": 24,
@@ -72,7 +72,7 @@ ESTIMATED_DRAM_BYTES = {k: 8 for k in THEORETICAL_BYTES}
 PLOT_STYLES = {
     "pytorch":    {"marker": "*", "color": "#f59e0b"},
     "naive":      {"marker": "v", "color": "#6b7280"},
-    "naive_1024": {"marker": "v", "color": "#d97706"},
+    "naive_32":   {"marker": "v", "color": "#d97706"},
     "shared":     {"marker": "^", "color": "#8b5cf6"},
     "simd":       {"marker": "D", "color": "#ec4899"},
     "vectorized": {"marker": "o", "color": "#2563eb"},
@@ -379,7 +379,7 @@ def main():
             "Kernel names: pytorch, naive (k1), shared (k2), simd (k3),\n"
             "              vectorized (k4), fused (k5), robust (k6), "
             "regtiled (k7)\n"
-            "              naive_1024 (k1b)\n"
+            "              naive_32 (k1b)\n"
             "Use 'all' to select every kernel."
         ))
     parser.add_argument(

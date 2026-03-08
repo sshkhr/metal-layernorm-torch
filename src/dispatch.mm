@@ -85,7 +85,7 @@ torch::Tensor layernorm_forward(
     // Resolve Metal function name (ablation variants share the same shader
     // function but use different dispatch configs).
     std::string metal_fn = kernel_name;
-    if (kernel_name == "layernorm_naive_1024") {
+    if (kernel_name == "layernorm_naive_32") {
         metal_fn = "layernorm_naive";
     }
 
@@ -117,12 +117,12 @@ torch::Tensor layernorm_forward(
             [enc setBytes:&eps length:sizeof(float) atIndex:5];
 
             if (kernel_name == "layernorm_naive" ||
-                kernel_name == "layernorm_naive_1024") {
+                kernel_name == "layernorm_naive_32") {
                 // K1: One thread per row — use dispatchThreads so each
                 // thread gets a unique row via [[thread_position_in_grid]].
                 // No threadgroup memory needed.
-                NSUInteger maxTg = (kernel_name == "layernorm_naive_1024")
-                    ? (NSUInteger)1024 : (NSUInteger)256;
+                NSUInteger maxTg = (kernel_name == "layernorm_naive_32")
+                    ? (NSUInteger)32 : (NSUInteger)1024;
                 MTLSize gridSize = MTLSizeMake(B, 1, 1);
                 NSUInteger tgWidth = std::min(
                     (NSUInteger)B, pso.maxTotalThreadsPerThreadgroup);

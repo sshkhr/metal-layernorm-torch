@@ -110,7 +110,7 @@ def main():
             "Kernel names: pytorch, naive (k1), shared (k2), simd (k3),\n"
             "              vectorized (k4), fused (k5), robust (k6), "
             "regtiled (k7)\n"
-            "              naive_1024 (k1b)\n"
+            "              naive_32 (k1b)\n"
             "Use 'all' to select every kernel."
         ))
     parser.add_argument(

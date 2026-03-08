@@ -24,8 +24,8 @@ DTYPE = torch.float32
 # Scripts that need extra fields (e.g. plot marker/color) can layer them on.
 KERNEL_META = {
     "pytorch":    {"label": "PyTorch nn.LayerNorm"},
-    "naive":      {"label": "K1: Naive (tg=256)"},
-    "naive_1024": {"label": "K1: Naive (tg=1024)"},
+    "naive":      {"label": "K1: Naive (tg=1024)"},
+    "naive_32":   {"label": "K1: Naive (tg=32)"},
     "shared":     {"label": "K2: Threadgroup reduction"},
     "simd":       {"label": "K3: SIMD reduction"},
     "vectorized": {"label": "K4: Vectorized float4"},
@@ -35,12 +35,12 @@ KERNEL_META = {
 }
 
 # Canonical ordering for consistent display
-KERNEL_ORDER = ["pytorch", "naive", "naive_1024", "shared", "simd",
+KERNEL_ORDER = ["pytorch", "naive", "naive_32", "shared", "simd",
                 "vectorized", "fused", "robust", "regtiled"]
 
 # Aliases for convenience (e.g. -k k1 k4 k7)
 ALIASES = {
-    "k1": "naive", "k1b": "naive_1024",
+    "k1": "naive", "k1b": "naive_32",
     "k2": "shared", "k3": "simd", "k4": "vectorized",
     "k5": "fused", "k6": "robust", "k7": "regtiled",
 }

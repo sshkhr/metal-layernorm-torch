@@ -8,7 +8,7 @@ from . import _C
 # Kernel variants: maps short name → (shader filename, Metal function name)
 KERNELS = {
     "naive":      ("layernorm_naive.metal",      "layernorm_naive"),
-    "naive_1024": ("layernorm_naive.metal",      "layernorm_naive_1024"),
+    "naive_32":   ("layernorm_naive.metal",      "layernorm_naive_32"),
     "shared":     ("layernorm_shared.metal",     "layernorm_shared"),
     "simd":       ("layernorm_simd.metal",       "layernorm_simd"),
     "vectorized": ("layernorm_vectorized.metal", "layernorm_vectorized"),
